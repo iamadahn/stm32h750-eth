@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-embassy-stm32 = { version = "0.2.0", features = [ "defmt", "stm32h750vb", "unstable-pac", "time-driver-any" ] }
-embassy-sync = { version = "0.6.2", features = [ "defmt" ] }
-embassy-executor = { version = "0.7.0", features = [ "arch-cortex-m", "executor-thread", "defmt" ] }
-embassy-embedded-hal = { version = "0.3.0" }
-embassy-time = { version = "0.4.0", features = [ "defmt", "defmt-timestamp-uptime", "tick-hz-32_768" ] }
-embassy-futures = { version = "0.1.0" }
-embassy-net = { version = "0.7.0", features = ["defmt", "tcp", "dhcpv4", "medium-ethernet", "proto-ipv6", "dns"] }
+embassy-stm32 = { version = "0.2.0", path = "embassy/embassy-stm32", features = [ "defmt", "stm32h750vb", "unstable-pac", "time-driver-any" ] }
+embassy-sync = { version = "0.6.2", path = "embassy/embassy-sync", features = [ "defmt" ] }
+embassy-executor = { version = "0.7.0", path = "embassy/embassy-executor", features = [ "arch-cortex-m", "executor-thread", "defmt" ] }
+embassy-embedded-hal = { version = "0.3.0", path = "embassy/embassy-embedded-hal" }
+embassy-time = { version = "0.4.0", path = "embassy/embassy-time", features = [ "defmt", "defmt-timestamp-uptime", "tick-hz-32_768" ] }
+embassy-futures = { version = "0.1.0", path = "embassy/embassy-futures" }
+embassy-net = { version = "0.7.0", path = "embassy/embassy-net", features = ["defmt", "tcp", "dhcpv4", "medium-ethernet", "proto-ipv6", "dns"] }
 
 defmt = "0.3"
 defmt-rtt = "0.4"

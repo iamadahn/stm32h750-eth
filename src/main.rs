@@ -5,8 +5,7 @@ use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::{Ipv4Address, StackResources, Ipv4Cidr};
-use embassy_stm32::eth::generic_smi::GenericSMI;
-use embassy_stm32::eth::{Ethernet, PacketQueue};
+use embassy_stm32::eth::{Ethernet, GenericPhy, PacketQueue};
 use embassy_stm32::peripherals::ETH;
 use embassy_stm32::peripherals::RNG;
 use embassy_stm32::rng::Rng;
@@ -24,7 +23,7 @@ bind_interrupts!(struct Irqs {
     HASH_RNG => rng::InterruptHandler<peripherals::RNG>;
 });
 
-type Device = Ethernet<'static, ETH, GenericSMI>;
+type Device = Ethernet<'static, ETH, GenericPhy>;
 
 #[embassy_executor::task]
 async fn net_task(mut runner: embassy_net::Runner<'static, Device>) -> ! {
@@ -48,9 +47,9 @@ async fn main(spawner: Spawner) -> ! {
             source: PllSource::HSE,
             prediv: PllPreDiv::DIV5,
             mul: PllMul::MUL192,
-            divp: Some(PllDiv::DIV6),
-            divq: Some(PllDiv::DIV6),
-            divr: Some(PllDiv::DIV6),
+            divp: Some(PllDiv::DIV2),
+            divq: Some(PllDiv::DIV2),
+            divr: Some(PllDiv::DIV2),
         });
         config.rcc.sys = Sysclk::PLL1_P;
         config.rcc.ahb_pre = AHBPrescaler::DIV2;
@@ -69,7 +68,7 @@ async fn main(spawner: Spawner) -> ! {
     rng.fill_bytes(&mut seed);
     let seed = u64::from_le_bytes(seed);
 
-    let mac_addr = [0x00, 0x00, 0xDE, 0xAD, 0xBA, 0xBE];
+    let mac_addr = [0x00, 0x00, 0xDE, 0xAD, 0xBA, 0xEF];
 
     info!("Initialising ethernet.");
 
@@ -87,18 +86,19 @@ async fn main(spawner: Spawner) -> ! {
         p.PB12, // TX_D0: Transmit Bit 0
         p.PB13, // TX_D1: Transmit Bit 1
         p.PB11, // TX_EN: Transmit Enable
-        GenericSMI::new(0),
+        GenericPhy::new_auto(),
         mac_addr,
     );
 
     info!("Ethrenet initialized.");
 
-    //let config = embassy_net::Config::dhcpv4(Default::default());
-    let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
+    let config = embassy_net::Config::dhcpv4(Default::default());
+    /*let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
         address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 31, 69), 24),
         dns_servers: Vec::new(),
-        gateway: None,
+        gateway: Some(Ipv4Address::new(192, 168, 31, 5)),
     });
+    */
 
     // Init network stack
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
@@ -122,7 +122,7 @@ async fn main(spawner: Spawner) -> ! {
         socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));
 
         // You need to start a server on the host machine, for example: `nc -l 8000`
-        let remote_endpoint = (Ipv4Address::new(192, 168, 31, 69), 8000);
+        let remote_endpoint = (Ipv4Address::new(192, 168, 31, 222), 8000);
         info!("connecting...");
         let r = socket.connect(remote_endpoint).await;
         if let Err(e) = r {
