@@ -3,3 +3,5 @@ MEMORY
     FLASH    : ORIGIN = 0x90000000, LENGTH = 8M /* BANK_1 */
     RAM      : ORIGIN = 0x24000000, LENGTH = 512K  /* SRAM */
 }
+
+stack_start = ORIGIN(RAM) + LENGTH(RAM);

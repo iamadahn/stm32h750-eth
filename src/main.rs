@@ -7,7 +7,6 @@ use embassy_net::tcp::TcpSocket;
 use embassy_net::{Ipv4Address, StackResources, Ipv4Cidr};
 use embassy_stm32::eth::{Ethernet, GenericPhy, PacketQueue};
 use embassy_stm32::peripherals::ETH;
-use embassy_stm32::peripherals::RNG;
 use embassy_stm32::rng::Rng;
 use embassy_stm32::{bind_interrupts, eth, peripherals, rng, Config};
 use embassy_time::Timer;
@@ -34,15 +33,16 @@ async fn net_task(mut runner: embassy_net::Runner<'static, Device>) -> ! {
 async fn main(spawner: Spawner) -> ! {
     info!("Initialising clocks.");
     let mut config = Config::default();
+
     {
         use embassy_stm32::rcc::*;
         config.rcc.hsi = Some(HSIPrescaler::DIV1);
         config.rcc.csi = true;
+        config.rcc.hsi48 = Some(Default::default());
         config.rcc.hse = Some(Hse {
             freq: Hertz(25_000_000),
             mode: HseMode::Oscillator,
         });
-        config.rcc.hsi48 = Some(Default::default());
         config.rcc.pll1 = Some(Pll {
             source: PllSource::HSE,
             prediv: PllPreDiv::DIV5,
@@ -68,7 +68,7 @@ async fn main(spawner: Spawner) -> ! {
     rng.fill_bytes(&mut seed);
     let seed = u64::from_le_bytes(seed);
 
-    let mac_addr = [0x00, 0x00, 0xDE, 0xAD, 0xBA, 0xEF];
+    let mac_addr = [0x00, 0x00, 0xDE, 0xAD, 0xBA, 0xBE];
 
     info!("Initialising ethernet.");
 
@@ -92,13 +92,12 @@ async fn main(spawner: Spawner) -> ! {
 
     info!("Ethrenet initialized.");
 
-    let config = embassy_net::Config::dhcpv4(Default::default());
-    /*let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
+    //let config = embassy_net::Config::dhcpv4(Default::default());
+    let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
         address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 31, 69), 24),
         dns_servers: Vec::new(),
         gateway: Some(Ipv4Address::new(192, 168, 31, 5)),
     });
-    */
 
     // Init network stack
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
@@ -121,7 +120,6 @@ async fn main(spawner: Spawner) -> ! {
 
         socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));
 
-        // You need to start a server on the host machine, for example: `nc -l 8000`
         let remote_endpoint = (Ipv4Address::new(192, 168, 31, 222), 8000);
         info!("connecting...");
         let r = socket.connect(remote_endpoint).await;
@@ -141,3 +139,4 @@ async fn main(spawner: Spawner) -> ! {
         }
     }
 }
+
