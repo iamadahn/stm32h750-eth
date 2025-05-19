@@ -157,18 +157,8 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
 
-        let r = socket
-            .write_all(
-                b"HTTP/1.0 200 OK\r\n\r\n\
-            <html>\
-                <body>\
-                    <h1>Hello Rust! Hello STM32!</h1>\
-                    <h2>This is my first time ever using ethernet on STM32<h2>\
-                </body>\
-            </html>\r\n\
-                "
-                )
-            .await;
+        let index = include_bytes!("web-interface/index.html");
+        let r = socket.write_all(index).await;
         if let Err(e) = r {
             info!("Flush error - {}.", e);
         }
