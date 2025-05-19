@@ -4,7 +4,7 @@
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
-use embassy_net::{Ipv4Address, StackResources, Ipv4Cidr};
+use embassy_net::{IpListenEndpoint, Ipv4Address, Ipv4Cidr, StackResources};
 use embassy_stm32::eth::{Ethernet, GenericPhy, PacketQueue};
 use embassy_stm32::peripherals::ETH;
 use embassy_stm32::rng::Rng;
@@ -12,7 +12,6 @@ use embassy_stm32::{bind_interrupts, eth, peripherals, rng, Config};
 use embassy_time::Timer;
 use embedded_io_async::Write;
 use embassy_stm32::time::Hertz;
-use rand_core::RngCore;
 use static_cell::StaticCell;
 use heapless::Vec;
 use {defmt_rtt as _, panic_probe as _};
@@ -115,28 +114,70 @@ async fn main(spawner: Spawner) -> ! {
     let mut rx_buffer = [0; 1024];
     let mut tx_buffer = [0; 1024];
 
+    let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
+
     loop {
-        let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
+        info!("Waiting for connections.");
+        let r = socket
+            .accept(IpListenEndpoint {
+                addr: None,
+                port: 80,
+            })
+        .await;
+        info!("Connected.");
 
-        socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));
-
-        let remote_endpoint = (Ipv4Address::new(192, 168, 31, 222), 8000);
-        info!("connecting...");
-        let r = socket.connect(remote_endpoint).await;
         if let Err(e) = r {
-            info!("connect error: {:?}", e);
-            Timer::after_secs(1).await;
-            continue;
+            info!("Connection error - {}", e);
         }
-        info!("connected!");
+
+        let mut buf = [0u8; 1024];
+        let mut pos = 0;
         loop {
-            let r = socket.write_all(b"Hello\n").await;
-            if let Err(e) = r {
-                info!("write error: {:?}", e);
-                break;
+            match socket.read(&mut buf).await {
+                Ok(0) => {
+                    info!("Read EOF.");
+                    break;
+                }
+
+                Ok(len) => {
+                    let to_print = 
+                        unsafe { core::str::from_utf8_unchecked(&buf[..(pos + len)]) };
+                    if to_print.contains("\r\n\r\n") {
+                        info!("Ok(len){}", to_print); 
+                        break;
+                    }
+                    
+                    pos += len;
+                }
+
+                Err(e) => {
+                    info!("Read error - {}.", e);
+                    break;
+                }
             }
-            Timer::after_secs(1).await;
         }
+
+        let r = socket
+            .write_all(
+                b"HTTP/1.0 200 OK\r\n\r\n\
+            <html>\
+                <body>\
+                    <h1>Hello Rust! Hello STM32!</h1>\
+                    <h2>This is my first time ever using ethernet on STM32<h2>\
+                </body>\
+            </html>\r\n\
+                "
+                )
+            .await;
+        if let Err(e) = r {
+            info!("Flush error - {}.", e);
+        }
+
+        Timer::after_millis(1000).await;
+        socket.close();
+
+        Timer::after_millis(1000).await;
+        socket.abort();
     }
 }
 
