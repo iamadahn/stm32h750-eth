@@ -35,7 +35,6 @@ embedded-storage = "0.3.1"
 static_cell = "2"
 chrono = { version = "^0.4", default-features = false }
 grounded = "0.2.0"
-picoserve = { version = "0.16", default-features = false, features = [ "embassy"]  }
 
 [patch.crates-io]
 embassy-sync = { git = "https://github.com/embassy-rs/embassy", branch = "main" }
