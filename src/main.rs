@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use defmt::*;
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::{IpListenEndpoint, Ipv4Address, Ipv4Cidr, StackResources};
@@ -10,10 +10,10 @@ use embassy_stm32::peripherals::ETH;
 use embassy_stm32::rng::Rng;
 use embassy_stm32::{bind_interrupts, eth, peripherals, rng, Config};
 use embassy_time::Timer;
-use embedded_io_async::Write;
 use embassy_stm32::time::Hertz;
 use static_cell::StaticCell;
 use heapless::Vec;
+use embedded_io_async::Write;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -103,7 +103,7 @@ async fn main(spawner: Spawner) -> ! {
     let (stack, runner) = embassy_net::new(device, config, RESOURCES.init(StackResources::new()), seed);
 
     // Launch network task
-    unwrap!(spawner.spawn(net_task(runner)));
+    spawner.spawn(net_task(runner)).unwrap();
 
     // Ensure DHCP configuration is up before trying connect
     stack.wait_config_up().await;
@@ -157,8 +157,13 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
 
-        let index = include_bytes!("web-interface/index.html");
-        let r = socket.write_all(index).await;
+        let index = include_str!("web-interface/index.html");
+        let mut buf: heapless::String<512> = heapless::String::new();
+        {
+            use core::fmt::Write;
+            write!(&mut buf, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", index.len(), index).unwrap();
+        }
+        let r = socket.write_all(buf.as_bytes()).await;
         if let Err(e) = r {
             info!("Flush error - {}.", e);
         }
