@@ -12,7 +12,6 @@ use embassy_stm32::{bind_interrupts, eth, peripherals, rng, Config};
 use embassy_time::Timer;
 use embassy_stm32::time::Hertz;
 use static_cell::StaticCell;
-use heapless::Vec;
 use embedded_io_async::Write;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -91,12 +90,7 @@ async fn main(spawner: Spawner) -> ! {
 
     info!("Ethrenet initialized.");
 
-    //let config = embassy_net::Config::dhcpv4(Default::default());
-    let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 31, 69), 24),
-        dns_servers: Vec::new(),
-        gateway: Some(Ipv4Address::new(192, 168, 31, 5)),
-    });
+    let config = embassy_net::Config::dhcpv4(Default::default());
 
     // Init network stack
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
